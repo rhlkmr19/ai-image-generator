@@ -2,18 +2,18 @@ import React, { useState } from 'react';
 import './App.css';
 
 function App() {
-  const [prompt, setPrompt] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
+  const [topic, setTopic] = useState('');
+  const [seoContent, setSeoContent] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const generateImage = async () => {
-    if (!prompt.trim()) {
-      alert('Please enter a prompt');
+  const generateSEO = async () => {
+    if (!topic.trim()) {
+      alert('Please enter a video topic');
       return;
     }
 
     setLoading(true);
-    setImageUrl('');
+    setSeoContent(null);
 
     try {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -23,38 +23,33 @@ function App() {
           'Authorization': `Bearer ${process.env.REACT_APP_AGENTROUTER_API_KEY}`
         },
         body: JSON.stringify({
-          model: 'black-forest-labs/flux-schnell',
+          model: 'anthropic/claude-3.5-sonnet',
           messages: [
             {
               role: 'user',
-              content: prompt
+              content: `Generate complete YouTube SEO for a video about: "${topic}"
+
+Provide:
+1. Catchy Title (max 60 characters)
+2. Full Description (300-500 words with timestamps)
+3. 20-30 Relevant Tags
+4. Thumbnail Text Suggestion
+5. 5 Engaging Hooks for the first 10 seconds
+
+Format it clearly with headings.`
             }
-          ],
-          modalities: ['image', 'text']
+          ]
         })
       });
 
       const data = await response.json();
 
       if (data.choices && data.choices[0]?.message?.content) {
-        const content = data.choices[0].message.content;
-        // Extract image URL from content (it may be in different formats)
-        const imageUrlMatch = content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)/i);
-        if (imageUrlMatch) {
-          setImageUrl(imageUrlMatch[0]);
-        } else if (content.includes('http')) {
-          // Try to find any URL in the content
-          const urlMatch = content.match(/https?:\/\/[^\s<>"]+/i);
-          if (urlMatch) {
-            setImageUrl(urlMatch[0]);
-          } else {
-            alert('Image URL not found in response');
-          }
-        } else {
-          alert('Failed to generate image. Response: ' + JSON.stringify(data));
-        }
+        setSeoContent(data.choices[0].message.content);
+      } else if (data.error) {
+        alert('Error: ' + data.error.message);
       } else {
-        alert('Failed to generate image: ' + (data.error?.message || 'Unknown error'));
+        alert('Failed to generate SEO content');
       }
     } catch (error) {
       alert('Error: ' + error.message);
@@ -66,20 +61,24 @@ function App() {
   return (
     <div className="App">
       <div className="container">
-        <h1>AI Image Generator</h1>
+        <h1>YouTube SEO Generator</h1>
         <p className="subtitle">Powered by AgentRouter API</p>
-        <textarea
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="Enter your image description here..."
-          rows="4"
+        <input
+          type="text"
+          value={topic}
+          onChange={(e) => setTopic(e.target.value)}
+          placeholder="Enter your video topic (e.g., 'Best AI tools for beginners')"
+          onKeyPress={(e) => e.key === 'Enter' && generateSEO()}
         />
-        <button onClick={generateImage} disabled={loading}>
-          {loading ? 'Generating...' : 'Generate Image'}
+        <button onClick={generateSEO} disabled={loading}>
+          {loading ? 'Generating...' : 'Generate SEO'}
         </button>
-        {imageUrl && (
-          <div className="image-container">
-            <img src={imageUrl} alt="Generated" />
+        {seoContent && (
+          <div className="seo-result">
+            <pre>{seoContent}</pre>
+            <button onClick={() => navigator.clipboard.writeText(seoContent)}>
+              Copy to Clipboard
+            </button>
           </div>
         )}
       </div>
