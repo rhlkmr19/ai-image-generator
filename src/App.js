@@ -13,6 +13,7 @@ function App() {
     }
 
     setLoading(true);
+        console.log('API Key:', process.env.REACT_APP_AGENTROUTER_API_KEY ? 'Found' : 'Missing');
     setSeoContent(null);
 
     try {
