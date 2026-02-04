@@ -16,30 +16,48 @@ function App() {
     setImageUrl('');
 
     try {
-      const response = await fetch('https://agentrouter.org/api/v1/text-to-image', {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.REACT_APP_AGENTROUTER_API_KEY}`
         },
         body: JSON.stringify({
-          prompt: prompt,
-          model: 'flux-schnell'
+          model: 'black-forest-labs/flux-schnell',
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          modalities: ['image', 'text']
         })
       });
 
       const data = await response.json();
-      
-      if (data.image_url) {
-        setImageUrl(data.image_url);
-      } else if (data.images && data.images[0]) {
-        setImageUrl(data.images[0].url);
+
+      if (data.choices && data.choices[0]?.message?.content) {
+        const content = data.choices[0].message.content;
+        // Extract image URL from content (it may be in different formats)
+        const imageUrlMatch = content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|webp|gif)/i);
+        if (imageUrlMatch) {
+          setImageUrl(imageUrlMatch[0]);
+        } else if (content.includes('http')) {
+          // Try to find any URL in the content
+          const urlMatch = content.match(/https?:\/\/[^\s<>"]+/i);
+          if (urlMatch) {
+            setImageUrl(urlMatch[0]);
+          } else {
+            alert('Image URL not found in response');
+          }
+        } else {
+          alert('Failed to generate image. Response: ' + JSON.stringify(data));
+        }
       } else {
-        alert('Failed to generate image');
+        alert('Failed to generate image: ' + (data.error?.message || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error:', error);
-      alert('Error generating image');
+      alert('Error: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -50,33 +68,17 @@ function App() {
       <div className="container">
         <h1>AI Image Generator</h1>
         <p className="subtitle">Powered by AgentRouter API</p>
-        
-        <div className="input-section">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Enter your image description..."
-            rows="4"
-          />
-          <button 
-            onClick={generateImage} 
-            disabled={loading}
-            className="generate-btn"
-          >
-            {loading ? 'Generating...' : 'Generate Image'}
-          </button>
-        </div>
-
-        {loading && (
-          <div className="loading">
-            <div className="spinner"></div>
-            <p>Creating your image...</p>
-          </div>
-        )}
-
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="Enter your image description here..."
+          rows="4"
+        />
+        <button onClick={generateImage} disabled={loading}>
+          {loading ? 'Generating...' : 'Generate Image'}
+        </button>
         {imageUrl && (
-          <div className="image-section">
-            <h3>Generated Image:</h3>
+          <div className="image-container">
             <img src={imageUrl} alt="Generated" />
           </div>
         )}
